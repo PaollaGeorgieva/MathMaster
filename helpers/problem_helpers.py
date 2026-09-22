@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from gamification_helpers import award_problem_points, award_problem_badges
+from helpers.gamification_helpers import award_problem_points, award_problem_badges
 from models import Problem, Level, Theme, UserProblemProgress, UserProblemAttempt, User
 from schemas import SubmitAnswer, AttemptResult, BadgeRead
 from security import get_current_user

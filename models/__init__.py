@@ -2,7 +2,7 @@ from database import Base
 
 from .user_models import User, StudentProfile, TeacherProfile
 
-from .content_models import Theme, Level, Problem, ExampleProblem
+from .content_models import Theme, Level, Theory, Problem, ExampleProblem
 
 from .schol_class_models import SchoolClass, ClassProblemAssignment
 

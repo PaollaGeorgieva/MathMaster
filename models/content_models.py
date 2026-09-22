@@ -36,7 +36,6 @@ class Level(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(30))
     description: Mapped[str] = mapped_column(Text)
-    theory: Mapped[str | None] = mapped_column(Text, nullable=True)
     order_index: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -45,9 +44,14 @@ class Level(Base):
     theme: Mapped["Theme"] = relationship(
         back_populates="levels"
     )
-    example_problems: Mapped[List["ExampleProblem"]] = relationship(
-        back_populates="level"
+
+
+
+    theories: Mapped[List["Theory"]] = relationship(
+        back_populates="level",
+        order_by="Theory.order_index",
     )
+
     problems: Mapped[List["Problem"]] = relationship(
         back_populates="level"
     )
@@ -57,6 +61,22 @@ class Level(Base):
 
 
 
+class Theory(Base):
+    __tablename__ = "theory"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String)
+    content: Mapped[str] = mapped_column(Text)
+    order_index: Mapped[int] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    level_id: Mapped[int] = mapped_column(ForeignKey("levels.id"))
+    level: Mapped["Level"] = relationship(
+        back_populates="theories"
+    )
+
+    example_problems: Mapped[List["ExampleProblem"]] = relationship(
+        back_populates="theory",
+        order_by="ExampleProblem.order_index",
+    )
 
 
 class ExampleProblem(Base):
@@ -68,10 +88,10 @@ class ExampleProblem(Base):
     order_index: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    level_id: Mapped[int] = mapped_column(ForeignKey("levels.id"))
+    theory_id: Mapped[int] = mapped_column(ForeignKey("theory.id"),  nullable=True)
 
-    level: Mapped["Level"] = relationship(
-        back_populates="example_problems"
+    theory: Mapped["Theory"] = relationship(
+        back_populates="example_problems",
     )
 
 
