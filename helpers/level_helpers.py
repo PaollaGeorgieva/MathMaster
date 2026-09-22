@@ -5,8 +5,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from models import Level, Problem, Theme, User, UserLevelProgress
-from progress_helpers import get_active_theme_test, get_theme_test_attempt
-from schemas import ExampleProblemRead, LevelRead, ProblemReadStudent, ThemeRead
+from helpers.progress_helpers import get_active_theme_test, get_theme_test_attempt
+from schemas import ExampleProblemRead, TheoryRead, LevelRead, ProblemReadStudent, ThemeRead
 
 
 @dataclass(frozen=True)
@@ -72,25 +72,32 @@ def level_to_read(*, level: Level, access: LevelAccess, user: User) -> LevelRead
 
     if not access.is_unlocked:
         response.description = None
-        response.theory = None
-        response.example_problems = []
+        response.theories = []
         response.problems = []
         return response
 
-    response.example_problems = [
-        ExampleProblemRead.model_validate(example)
-        for example in level.example_problems
-        if example.is_active
+    response.theories = [
+        theory_to_read(theory)
+        for theory in sorted(level.theories, key=lambda item: (item.order_index, item.id))
+        if theory.is_active
     ]
     response.problems = [
         ProblemReadStudent.model_validate(problem)
         for problem in level.problems
         if problem.is_active and can_user_access_problem(user, problem)
     ]
-    response.example_problems.sort(key=lambda example: example.order_index)
     response.problems.sort(key=lambda problem: problem.order_index)
     return response
 
+
+def theory_to_read(theory) -> TheoryRead:
+    response = TheoryRead.model_validate(theory)
+    response.example_problems = [
+        ExampleProblemRead.model_validate(example)
+        for example in sorted(theory.example_problems, key=lambda item: (item.order_index, item.id))
+        if example.is_active
+    ]
+    return response
 
 
 def theme_to_read(*, theme: Theme, access_map: dict[int, LevelAccess], user: User, session: Session) -> ThemeRead:

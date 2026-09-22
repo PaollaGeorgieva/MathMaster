@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from helpers.level_helpers import require_level_unlocked
-from models import User, Level, ExampleProblem, Theme
+from models import User, Level, Theory, ExampleProblem, Theme
 from schemas import ExampleProblemRead, ExampleProblemCreate, ExampleProblemUpdate, Message, ExampleProblemReadAdmin
 from security import get_current_user
 
@@ -21,10 +21,10 @@ def create_example(*, current_user: CurrentUser, data: ExampleProblemCreate, ses
     if not current_user.is_superuser:
         raise HTTPException(403, "Only superusers can add problems")
 
-    level = session.get(Level, data.level_id)
+    theory = session.get(Theory, data.theory_id)
 
-    if not level or not level.is_active:
-        raise HTTPException(404, "Level not found")
+    if not theory or not theory.is_active or not theory.level.is_active or not theory.level.theme.is_active:
+        raise HTTPException(404, "Theory not found")
 
     example_obj = ExampleProblem(**data.model_dump())
 
@@ -40,9 +40,10 @@ def get_example(
     example_id: int,
     session: Session = Depends(get_db),
 ):
-    example = session.query(ExampleProblem).join(ExampleProblem.level).join(Level.theme).filter(
+    example = session.query(ExampleProblem).join(ExampleProblem.theory).join(Theory.level).join(Level.theme).filter(
         ExampleProblem.id == example_id,
         ExampleProblem.is_active.is_(True),
+        Theory.is_active.is_(True),
         Level.is_active.is_(True),
         Theme.is_active.is_(True),
     ).first()
@@ -51,7 +52,7 @@ def get_example(
         raise HTTPException(404, "Example not found")
 
     require_level_unlocked(
-        level=example.level,
+        level=example.theory.level,
         user=current_user,
         session=session,
     )
@@ -130,6 +131,7 @@ def activate_example(current_user: CurrentUser ,example_id:int, session: Session
 def get_examples_admin(
     current_user: CurrentUser,
     level_id: int | None = None,
+    theory_id: int | None = None,
     session: Session = Depends(get_db),
 ):
     if not current_user.is_superuser:
@@ -138,13 +140,18 @@ def get_examples_admin(
             "Only superusers can view all example problems",
         )
 
-    query = session.query(ExampleProblem)
+    query = session.query(ExampleProblem).join(ExampleProblem.theory)
 
     if level_id is not None:
-        query = query.filter(ExampleProblem.level_id == level_id)
+        query = query.filter(Theory.level_id == level_id)
+
+    if theory_id is not None:
+        query = query.filter(ExampleProblem.theory_id == theory_id)
 
     examples = query.order_by(
-            ExampleProblem.level_id.asc(),
+            Theory.level_id.asc(),
+            Theory.order_index.asc(),
+            ExampleProblem.theory_id.asc(),
             ExampleProblem.order_index.asc(),
             ExampleProblem.id.asc()).all()
 

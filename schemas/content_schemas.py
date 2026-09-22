@@ -50,7 +50,6 @@ class ThemeReadAdmin(BaseModel):
 class LevelCreate(BaseModel):
     title: str
     description: str
-    theory: str
     order_index: int
     theme_id: int
 
@@ -58,7 +57,6 @@ class LevelCreate(BaseModel):
 class LevelUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    theory: str | None = None
 
 
 class ExampleProblemRead(BaseModel):
@@ -75,7 +73,7 @@ class ExampleProblemReadAdmin(BaseModel):
     question: str
     solution: str
     order_index: int
-    level_id: int
+    theory_id: int
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -85,12 +83,48 @@ class ExampleProblemCreate(BaseModel):
     question: str
     solution: str
     order_index: int
-    level_id: int
+    theory_id: int = Field(gt=0)
 
 class ExampleProblemUpdate(BaseModel):
     question: str | None = None
     solution: str | None = None
     order_index: int | None = None
+
+
+class TheoryCreate(BaseModel):
+    title: str = Field(min_length=1)
+    content: str = Field(min_length=1)
+    order_index: int = Field(ge=1)
+    level_id: int = Field(gt=0)
+
+
+class TheoryUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1)
+    content: str | None = Field(default=None, min_length=1)
+    order_index: int | None = Field(default=None, ge=1)
+
+
+class TheoryRead(BaseModel):
+    id: int
+    title: str
+    content: str
+    order_index: int
+    level_id: int
+    example_problems: list[ExampleProblemRead] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TheoryReadAdmin(BaseModel):
+    id: int
+    title: str
+    content: str
+    order_index: int
+    level_id: int
+    is_active: bool
+    example_problems: list[ExampleProblemReadAdmin] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 
@@ -155,11 +189,10 @@ class LevelRead(BaseModel):
     id: int
     title: str
     description: str | None = None
-    theory: str | None = None
     order_index: int
     is_active: bool = True
     theme_id: int
-    example_problems: list['ExampleProblemRead'] = Field(default_factory=list)
+    theories: list[TheoryRead] = Field(default_factory=list)
     problems: list['ProblemReadStudent'] = Field(default_factory=list)
     is_unlocked: bool = False
     is_completed: bool = False
@@ -171,7 +204,7 @@ class LevelReadAdmin(BaseModel):
     id: int
     title: str
     description: str
-    theory: str | None = None
+    theories: list[TheoryReadAdmin] = Field(default_factory=list)
     order_index: int
     is_active: bool
     theme_id: int
