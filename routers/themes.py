@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
+from helpers.delete_helpers import delete_theme_content
 from helpers.level_helpers import (
     build_level_access_map,
     get_active_levels,
     theme_to_read,
 )
-from models import User, Theme
+from helpers.progress_helpers import unlock_next_theme
+from models import User, Theme, StudentProfile, UserLevelProgress, Level
 from schemas import ThemeRead, ThemeCreate, ThemeUpdate, Message, ThemeReadAdmin
 from security import get_current_user
 
@@ -59,7 +61,7 @@ def get_themes_admin(current_user: CurrentUser,session: Session = Depends(get_db
 
 
 
-@themes_router.post("/", response_model=ThemeRead)
+@themes_router.post("/", response_model=ThemeReadAdmin)
 def create_theme(*, current_user: CurrentUser, data: ThemeCreate,session: Session = Depends(get_db)):
 
     if not current_user.is_superuser:
@@ -74,7 +76,7 @@ def create_theme(*, current_user: CurrentUser, data: ThemeCreate,session: Sessio
     return theme_obj
 
 
-@themes_router.patch("/{theme_id}", response_model=ThemeRead)
+@themes_router.patch("/{theme_id}", response_model=ThemeReadAdmin)
 def update_theme(*, theme_id: int, current_user:CurrentUser, data: ThemeUpdate, session: Session=Depends(get_db)):
 
     if not current_user.is_superuser:
@@ -109,6 +111,16 @@ def deactivate_theme(current_user: CurrentUser ,theme_id:int, session: Session =
 
     theme.is_active = False
 
+    students = session.query(UserLevelProgress.user_id).join(
+        UserLevelProgress.level
+    ).filter(
+        Level.theme_id == theme.id,
+        UserLevelProgress.is_unlocked.is_(True),
+    ).distinct().all()
+
+    for student in students:
+        unlock_next_theme(session=session, user_id=student.user_id, theme=theme)
+
     session.commit()
 
     return  Message(message="Theme deactivated successfully")
@@ -130,3 +142,26 @@ def activate_theme(current_user: CurrentUser ,theme_id:int, session: Session = D
     session.commit()
 
     return  Message(message="Theme activated successfully")
+
+
+
+@themes_router.delete("/{theme_id}/delete", response_model=Message)
+def delete_theme(current_user: CurrentUser ,theme_id:int, session: Session = Depends(get_db) ):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Only superusers can delete themes")
+
+    theme = session.get(Theme, theme_id)
+
+    if not theme:
+        raise HTTPException(404, "Theme not found")
+
+    try:
+        delete_theme_content(theme, session)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+
+    return  Message(message="Theme deleted successfully")

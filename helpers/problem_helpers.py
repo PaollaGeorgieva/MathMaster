@@ -5,7 +5,7 @@ from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from helpers.gamification_helpers import award_problem_points, award_problem_badges
-from models import Problem, Level, Theme, UserProblemProgress, UserProblemAttempt, User
+from models import Problem, Level, Theme, UserProblemProgress, UserProblemAttempt, User, Theory
 from schemas import SubmitAnswer, AttemptResult, BadgeRead
 from security import get_current_user
 
@@ -13,11 +13,12 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def get_problem_or_404(session: Session, problem_id: int) -> Problem:
-    problem = session.query(Problem).join(Problem.level).join(Level.theme).filter(
+    problem = session.query(Problem).join(Problem.level).join(Level.theme).join(Problem.theory).filter(
         Problem.id == problem_id,
         Problem.is_active.is_(True),
         Level.is_active.is_(True),
         Theme.is_active.is_(True),
+        Theory.is_active.is_(True)
     ).first()
 
     if problem is None:

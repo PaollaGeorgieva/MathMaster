@@ -77,26 +77,44 @@ def level_to_read(*, level: Level, access: LevelAccess, user: User) -> LevelRead
         return response
 
     response.theories = [
-        theory_to_read(theory)
+        theory_to_read(theory, user)
         for theory in sorted(level.theories, key=lambda item: (item.order_index, item.id))
         if theory.is_active
     ]
     response.problems = [
         ProblemReadStudent.model_validate(problem)
         for problem in level.problems
-        if problem.is_active and can_user_access_problem(user, problem)
+        if problem.is_active
+        and problem.theory is not None
+        and problem.theory.is_active
+        and can_user_access_problem(user, problem)
     ]
     response.problems.sort(key=lambda problem: problem.order_index)
     return response
 
 
-def theory_to_read(theory) -> TheoryRead:
+def theory_to_read(theory, user: User) -> TheoryRead:
     response = TheoryRead.model_validate(theory)
+
     response.example_problems = [
         ExampleProblemRead.model_validate(example)
-        for example in sorted(theory.example_problems, key=lambda item: (item.order_index, item.id))
+        for example in sorted(
+            theory.example_problems,
+            key=lambda item: (item.order_index, item.id),
+        )
         if example.is_active
     ]
+
+    response.problems = [
+        ProblemReadStudent.model_validate(problem)
+        for problem in sorted(
+            theory.problems,
+            key=lambda item: (item.order_index, item.id),
+        )
+        if problem.is_active
+        and can_user_access_problem(user, problem)
+    ]
+
     return response
 
 

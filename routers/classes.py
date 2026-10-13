@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from helpers.gamification_helpers import get_level_progress_percentage, get_points_to_next_level, get_student_rank
+from helpers.level_helpers import require_problem_access
 from models import User, StudentProfile, SchoolClass, UserProblemAttempt, Theme, Problem, Level, \
-    TestAttempt, UserProblemProgress, UserBadge, ThemeTest
+    TestAttempt, UserProblemProgress, UserBadge, ThemeTest, Theory
 from schemas import SchoolClassRead, SchoolClassCreate, Message, JoinSchoolClass, StudentInClass, StudentProgress, \
     StudentThemeProgress, StudentProblemAttemptsRead, ClassThemeStatistics, \
     ClassProblemStatistics, SchoolClassUpdate, BadgeRead
@@ -156,9 +157,10 @@ def get_student_theme_progress(student_id: int, current_user: CurrentUser, sessi
     theme_progress = []
 
     for theme in themes:
-        problem_rows = session.query(Problem.id).join(Problem.level).filter(
+        problem_rows = session.query(Problem.id).join(Problem.level).join(Problem.theory).filter(
             Level.theme_id == theme.id,
             Level.is_active.is_(True),
+            Theory.is_active.is_(True),
             Problem.is_active.is_(True),
             Problem.is_official.is_(True),
         ).all()
@@ -205,6 +207,8 @@ def get_student_problem_attempts(student_id: int, problem_id: int, current_user:
     if not problem:
         raise HTTPException(404, "Problem not found")
 
+    require_problem_access(user=current_user, problem=problem)
+
     problem_attempts = session.query(UserProblemAttempt).filter(
         UserProblemAttempt.user_id==student.user_id,
         UserProblemAttempt.problem_id==problem_id
@@ -236,11 +240,12 @@ def get_class_theme_statistics(class_id: int, theme_id: int, current_user: Curre
     total_students = len(student_user_ids)
     active_level_ids = [level.id for level in theme.levels if level.is_active]
 
-    theme_attempts = session.query(UserProblemAttempt).join(UserProblemAttempt.problem).filter(
+    theme_attempts = (session.query(UserProblemAttempt).join(UserProblemAttempt.problem).join(Problem.theory).filter(
         UserProblemAttempt.user_id.in_(student_user_ids),
         Problem.level_id.in_(active_level_ids),
         Problem.is_active.is_(True),
-    ).all()
+        Theory.is_active.is_(True)
+    ).all())
 
     started_students = len({attempt.user_id for attempt in theme_attempts})
 
@@ -385,6 +390,24 @@ def leave_class(current_user: CurrentUser, session: Session = Depends(get_db)):
 @classes_router.delete("/{class_id}", response_model=Message)
 def delete_class(class_id: int, current_user: CurrentUser, session: Session=Depends(get_db)):
     school_class = get_class_for_teacher(class_id, current_user, session)
+
+    for student in list(school_class.students):
+        student.school_class = None
+
+    session.delete(school_class)
+    session.commit()
+    return Message(message="Class deleted successfully")
+
+
+@classes_router.delete("/admin/{class_id}", response_model=Message)
+def delete_class_admin(class_id: int, current_user: CurrentUser, session: Session=Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Only admin has access")
+
+    school_class = session.get(SchoolClass, class_id)
+
+    if not school_class:
+        raise HTTPException(404, 'Class not found')
 
     for student in list(school_class.students):
         student.school_class = None

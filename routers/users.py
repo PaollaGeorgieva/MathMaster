@@ -16,8 +16,9 @@ from schemas import UserPublic, Message, UpdateUserEmail, UpdatePassword, Studen
     StudentProfileUpdate, TeacherProfileUpdate, StudentProgress, AdminUserRead, UserRole, AdminUserDetailRead, BadgeRead
 from security import get_current_user, verify_password, get_password_hash
 from crud import get_user_by_email
+from schemas.user_schemas import AdminProfileUpdate
 
-# SessionDep = Annotated[Session, Depends(get_db)]
+
 
 users_router = APIRouter(prefix="/users", tags=["users"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -188,13 +189,30 @@ def get_user_details_admin(user_id: uuid.UUID,current_user: CurrentUser,session:
     return user
 
 
+@users_router.patch("/admin/{user_id}/profile", response_model=AdminUserDetailRead)
+def update_profile_admin(user_id: uuid.UUID, data: AdminProfileUpdate,
+                         current_user: CurrentUser, session: Session = Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Admin access required")
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    profile = user.student if user.role == "student" else user.teacher
+    if profile is None:
+        raise HTTPException(404, "Profile not found")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(profile, field, value.strip() if isinstance(value, str) else value)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
 @users_router.patch("/admin/{user_id}/activate",response_model=AdminUserRead)
 def activate_user(user_id: uuid.UUID,current_user: CurrentUser,session: Session = Depends(get_db)):
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Admin access required")
 
     user = session.get(User, user_id)
-
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -247,3 +265,28 @@ def delete_user(user_id: uuid.UUID, current_user: CurrentUser, session: Session 
     session.commit()
 
     return Message(message="User permanently deleted successfully")
+
+
+
+@users_router.patch("/admin/{user_id}/deactivate", response_model=AdminUserRead)
+def deactivate_user(
+    user_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Session = Depends(get_db),
+):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Admin access required")
+
+    user = session.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(404, "User not found")
+
+    if user.id == current_user.id:
+        raise HTTPException(403, "You cannot deactivate your own account")
+
+    user.is_active = False
+    session.commit()
+    session.refresh(user)
+
+    return user

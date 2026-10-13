@@ -55,7 +55,13 @@ def add_profile_points(*, session: Session, user: User, points: int) -> None:
 def get_or_create_problem_progress(*, session: Session, user_id, problem_id: int) -> UserProblemProgress:
     progress = session.query(UserProblemProgress).filter_by(user_id=user_id, problem_id=problem_id).first()
     if progress is None:
-        progress = UserProblemProgress(user_id=user_id, problem_id=problem_id)
+        # These values are read before flush, when column defaults are not yet applied.
+        progress = UserProblemProgress(
+            user_id=user_id,
+            problem_id=problem_id,
+            hint_used=False,
+            points_awarded=0,
+        )
         session.add(progress)
     return progress
 
@@ -70,11 +76,10 @@ def record_hint_use(*, session: Session, user_id, problem: Problem) -> UserProbl
 
 
 def award_problem_points(*, session: Session, user: User, progress: UserProblemProgress) -> tuple[int, int, int]:
-    if progress.solved_at is not None:
+    if progress.points_awarded > 0:
         return 0, 0, 0
 
     base_points, bonus_points, total_points = calculate_problem_points(progress.hint_used)
-    progress.solved_at = datetime.now(timezone.utc)
     progress.points_awarded = total_points
     add_profile_points(session=session, user=user, points=total_points)
     return base_points, bonus_points, total_points

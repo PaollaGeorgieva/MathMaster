@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -55,16 +56,16 @@ def get_current_user(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-        email: str | None = payload.get("sub")
-        if email is None:
+        subject = payload.get("sub")
+        if not isinstance(subject, str):
             raise credentials_exception
 
+        user_id = UUID(subject)
 
-    except (JWTError, ValidationError):
+    except (JWTError, ValueError):
         raise credentials_exception
 
-    stmt = select(User).where(User.email == email)
-    user = session.scalars(stmt).first()
+    user = session.get(User, user_id)
 
 
     if user is None:

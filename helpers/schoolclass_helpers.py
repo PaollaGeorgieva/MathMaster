@@ -77,6 +77,9 @@ def get_student_for_teacher(student_id :int ,current_user:User, session: Session
     if not student:
         raise HTTPException(404, "Student not found")
 
+    if current_user.is_superuser:
+        return student
+
     if student.class_id is None:
         raise HTTPException(400, "Student is not in a class")
 

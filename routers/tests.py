@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from helpers.delete_helpers import delete_test_content
 from helpers.gamification_helpers import award_test_badge
 
 from models import Theme, ThemeTest, TestQuestion, TestQuestionAnswer, User, TestAttempt, \
@@ -12,7 +13,7 @@ from models import Theme, ThemeTest, TestQuestion, TestQuestionAnswer, User, Tes
 from helpers.progress_helpers import require_all_theme_levels_completed, unlock_next_theme
 from schemas import ThemeTestAdminRead, ThemeTestCreate, TestQuestionAdminRead, TestQuestionCreate, TestQuestionType, \
     TestQuestionUpdate, Message, ThemeTestStudentRead, TestAnswerOptionRead, TestQuestionStudentRead, TestResultRead, \
-    TestSubmission, TestHistoryItemRead, TeacherStudentTestResultRead
+    TestSubmission, TestHistoryItemRead, TeacherStudentTestResultRead, TestQuestionAnswerAdminRead, ThemeTestUpdate
 from security import get_current_user
 from helpers.test_helpers import check_test_editable, validate_answers, reorder_test_question, build_test_result, \
     get_test_for_submission, validate_test_submission, create_test_attempt
@@ -20,6 +21,79 @@ from helpers.test_helpers import check_test_editable, validate_answers, reorder_
 tests_router = APIRouter(prefix='/tests', tags=['tests'])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
+
+
+@tests_router.get('/admin', response_model=list[ThemeTestAdminRead])
+def get_tests(current_user:CurrentUser, theme_id: int | None = None, session: Session = Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Admin access required')
+
+    query = session.query(ThemeTest)
+
+    if theme_id is not None:
+        query = query.filter(ThemeTest.theme_id == theme_id)
+
+    tests = query.order_by(
+        ThemeTest.theme_id.asc(),
+        ThemeTest.version.desc(),
+        ThemeTest.id.asc()
+    ).all()
+
+    return tests
+
+
+@tests_router.get('/admin/{test_id}', response_model=ThemeTestAdminRead)
+def get_test_admin(test_id:int,  current_user:CurrentUser, session:Session=Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Admin access required')
+
+    test = session.get(ThemeTest, test_id)
+
+    if test is None:
+        raise HTTPException(404, 'Test not found')
+
+    return test
+
+
+@tests_router.patch('/admin/{test_id}', response_model=ThemeTestAdminRead)
+def update_test_admin(test_id:int, data:ThemeTestUpdate, current_user:CurrentUser, session:Session=Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Admin access required')
+
+    test = session.get(ThemeTest, test_id)
+
+    if test is None:
+        raise HTTPException(404, 'Test not found')
+
+    check_test_editable(test)
+
+    updates = data.model_dump(exclude_unset=True, exclude_none=True)
+
+    for field, value in updates.items():
+        setattr(test, field, value)
+
+    session.commit()
+    session.refresh(test)
+
+    return test
+
+
+@tests_router.delete('/admin/questions/{question_id}', response_model=Message)
+def delete_test_question(question_id: int, current_user:CurrentUser, session:Session=Depends(get_db) ):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Admin access required')
+
+    question = session.get(TestQuestion, question_id)
+
+    if question is None:
+        raise HTTPException(404, 'Question not found')
+
+    check_test_editable(question.test)
+
+    session.delete(question)
+    session.commit()
+
+    return Message(message="Question deleted successfully")
 
 
 
@@ -399,3 +473,24 @@ def get_class_test_results(class_id: int,current_user: CurrentUser,session: Sess
 
     return results
 
+@tests_router.delete('/admin/{test_id}/delete', response_model=Message)
+def delete_test_admin(test_id: int, current_user:CurrentUser, session: Session = Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Admin access required')
+
+    test = session.get(ThemeTest, test_id)
+
+    if not test:
+        raise HTTPException(404, 'Test not found')
+
+    try:
+        delete_test_content(test, session)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+    return Message(
+        message="Test deleted successfully"
+    )

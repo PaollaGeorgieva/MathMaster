@@ -1,0 +1,31 @@
+.topics-intro { display: grid; grid-template-columns: 1.4fr 1fr; align-items: center; gap: 20px; }
+.topics-intro .math-garden { max-width: 310px; justify-self: end; }
+.topics-intro .discovery-heading { margin-bottom: 10px; }
+.trail-key { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; border-bottom: 1px solid #dce7e1; padding: 18px 0; font-size: 16px; color: #62746c; }
+.trail-key > span { display: flex; gap: 8px; align-items: center; }
+.trail-key > span:last-child { margin-left: auto; }
+.trail-key i { display: inline-block; width: 13px; height: 13px; border-radius: 50%; }
+.key-current { background: #ffcc42; }.key-complete { background: #21aa86; }
+.topic-trail { list-style: none; padding: 38px 0 30px; margin: 0 auto; max-width: 850px; }
+.topic-step { --step: #18a585; --step-shadow: #08785e; --step-pale: #e8f7ee; position: relative; width: 78%; margin: 0 0 80px; }
+.topic-color-1 { --step: #8760d6; --step-shadow: #6142a1; --step-pale: #f0eafb; }
+.topic-color-2 { --step: #f58c60; --step-shadow: #c36640; --step-pale: #fff0e6; }
+.topic-step:nth-child(even) { margin-left: 22%; }
+.topic-step-link { position: relative; z-index: 1; display: flex; align-items: center; gap: 25px; padding: 20px 0; color: inherit; text-decoration: none; }
+.topic-step-stone { position: relative; width: 118px; height: 108px; flex: 0 0 118px; display: grid; place-items: center; border-radius: 50%; background: var(--step); color: white; font-size: 35px; box-shadow: 0 9px 0 var(--step-shadow), 0 0 0 12px var(--step-pale); border: 3px solid #ffffff50; transition: transform .15s, box-shadow .15s; }
+.topic-step-stone small { position: absolute; bottom: -20px; right: -7px; background: white; border: 2px solid var(--step-shadow); border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; color: var(--step-shadow); font-size: 17px; }
+.topic-step-link:hover .topic-step-stone { transform: translateY(-4px) rotate(-4deg); }
+.topic-step-link:focus-visible { outline: 3px solid #137f71; outline-offset: 10px; border-radius: 15px; }
+.topic-step-copy { flex: 1; min-width: 0; padding: 16px 5px; }
+.topic-step-copy h2 { font-size: clamp(25px, 2.6vw, 33px); font-weight: 400; line-height: 1.2; margin: 9px 0; }
+.topic-step-copy .chapter-label { color: var(--step-shadow); }
+.topic-step-copy > span:last-of-type { color: #63756c; font-size: 18px; }
+.topic-step-copy progress { display: block; width: min(230px, 100%); height: 8px; margin-top: 14px; accent-color: var(--step); }
+.topic-step-arrow { display: grid; place-items: center; width: 43px; height: 43px; flex: 0 0 43px; border-radius: 50%; color: var(--step-shadow); font-size: 26px; background: var(--step-pale); }
+.topic-step-arrow svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; }
+.topic-connector { position: absolute; left: 59px; top: calc(100% - 8px); width: 28.2%; height: 100px; overflow: visible; pointer-events: none; }
+.topic-connector path { fill: none; stroke: #b8d9ce; stroke-width: 4; stroke-dasharray: 5 10; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.topic-step:nth-child(even) .topic-connector { left: auto; right: calc(100% - 59px); transform: scaleX(-1); }
+@media(max-width:650px){.topics-intro{display:block}.topic-trail{padding-left:0}.topic-step{width:100%;margin-left:0!important}.topic-step-link{gap:15px}.topic-step-copy h2{font-size:20px}}
+.is-available .topic-step-stone { background: #ffd249; color: #644712; box-shadow: 0 9px 0 #d7a62c, 0 0 0 12px #fff5d7; }
+.is-locked .topic-step-stone { background: var(--step-pale); color: var(--step-shadow); border-color: #ffffff90; box-shadow: 0 8px 0 color-mix(in srgb, var(--step) 45%, white), 0 0 0 12px #fafbfa; }

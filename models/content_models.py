@@ -11,7 +11,6 @@ from database import Base
 
 
 
-
 class Theme(Base):
     __tablename__ = "themes"
 
@@ -73,6 +72,8 @@ class Theory(Base):
         back_populates="theories"
     )
 
+    problems: Mapped[List["Problem"]] = relationship(back_populates="theory", order_by='Problem.order_index')
+
     example_problems: Mapped[List["ExampleProblem"]] = relationship(
         back_populates="theory",
         order_by="ExampleProblem.order_index",
@@ -88,7 +89,7 @@ class ExampleProblem(Base):
     order_index: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    theory_id: Mapped[int] = mapped_column(ForeignKey("theory.id"),  nullable=True)
+    theory_id: Mapped[int] = mapped_column(ForeignKey("theory.id"),  nullable=False)
 
     theory: Mapped["Theory"] = relationship(
         back_populates="example_problems",
@@ -109,6 +110,7 @@ class Problem(Base):
     is_official: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     level_id: Mapped[int] = mapped_column(ForeignKey("levels.id"))
+    theory_id: Mapped[int] = mapped_column(ForeignKey("theory.id"),  nullable=False)
 
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -119,6 +121,10 @@ class Problem(Base):
 
     level: Mapped["Level"] = relationship(
         back_populates="problems"
+    )
+
+    theory: Mapped["Theory"] = relationship(
+        back_populates='problems'
     )
 
     creator: Mapped["User | None"] = relationship(

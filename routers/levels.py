@@ -2,9 +2,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from database import get_db
+from helpers.delete_helpers import delete_level_content
 from helpers.level_helpers import (
     build_level_access_map,
     get_active_levels,
@@ -12,7 +14,8 @@ from helpers.level_helpers import (
     require_level_unlocked,
 )
 from models import User, Level, UserLevelProgress,  Theme
-from helpers.progress_helpers import get_official_problem_progress_query
+from helpers.progress_helpers import get_official_problem_progress_query, complete_level_and_unlock_next_in_theme, \
+    get_or_create_level_progress
 from schemas import ReadLevelProgress, LevelRead, LevelProgressSummary, LevelCreate, LevelUpdate, Message, \
     LevelReadAdmin
 from security import get_current_user
@@ -58,9 +61,8 @@ def get_levels_admin(current_user: CurrentUser,theme_id: int | None = None,sessi
         Level.id.asc(),
     ).all()
 
-    response = [LevelReadAdmin.model_validate(level) for level in levels]
 
-    return response
+    return levels
 
 
 @levels_router.get("/{level_id}", response_model=LevelRead)
@@ -81,7 +83,7 @@ def get_level_progress(current_user: CurrentUser,level_id: int,session: Session 
         raise HTTPException(403, "Only students have progress")
 
     level = session.get(Level, level_id)
-    if not level or not level.is_active:
+    if not level or not level.is_active or not level.theme.is_active:
         raise HTTPException(404, "Level not found")
 
     require_level_unlocked(level=level, user=current_user,session=session)
@@ -98,7 +100,7 @@ def get_level_summary(current_user: CurrentUser, level_id: int, session: Session
         raise HTTPException(403, "Only students have progress")
 
     level = session.get(Level, level_id)
-    if not level or not level.is_active:
+    if not level or not level.is_active or not level.theme.is_active:
         raise HTTPException(404, "Level not found")
 
     require_level_unlocked(level=level, user=current_user, session=session)
@@ -125,7 +127,8 @@ def get_student_solved_problems(current_user: CurrentUser, level_id: int, sessio
         raise HTTPException(403, "Only students have progress")
 
     level = session.get(Level, level_id)
-    if not level or not level.is_active:
+    if not level or not level.is_active or not level.theme.is_active:
+
         raise HTTPException(404, "Level not found")
 
     require_level_unlocked(level=level, user=current_user, session=session)
@@ -142,7 +145,7 @@ def get_student_solved_problems(current_user: CurrentUser, level_id: int, sessio
 
 
 
-@levels_router.post("/", response_model=LevelRead)
+@levels_router.post("/", response_model=LevelReadAdmin)
 def create_level(*, current_user: CurrentUser, data: LevelCreate,session: Session = Depends(get_db)):
 
     if not current_user.is_superuser:
@@ -162,7 +165,7 @@ def create_level(*, current_user: CurrentUser, data: LevelCreate,session: Sessio
     return level_obj
 
 
-@levels_router.patch("/{level_id}", response_model=LevelRead)
+@levels_router.patch("/{level_id}", response_model=LevelReadAdmin)
 def update_level(*, level_id: int, current_user:CurrentUser, data: LevelUpdate, session: Session=Depends(get_db)):
 
     if not current_user.is_superuser:
@@ -197,6 +200,27 @@ def deactivate_level(*, level_id: int, current_user:CurrentUser, session: Sessio
 
     level.is_active = False
 
+
+    if level.theme.is_active:
+        next_level = session.query(Level).filter(
+            Level.theme_id == level.theme_id,
+            Level.is_active.is_(True),
+            tuple_(Level.order_index, Level.id) > (level.order_index, level.id),
+        ).order_by(Level.order_index, Level.id).first()
+
+        if next_level is not None:
+            for progress in level.user_associations:
+                if progress.is_unlocked:
+                    get_or_create_level_progress(
+                        session=session,
+                        user_id=progress.user_id,
+                        level=next_level,
+                        is_unlocked=True,
+                    )
+
+
+
+
     session.commit()
 
     return Message(message="Level deactivated successfully")
@@ -219,3 +243,26 @@ def activate_level(*, level_id: int, current_user:CurrentUser, session: Session=
     session.commit()
 
     return Message(message="Level activated successfully")
+
+
+@levels_router.delete("/admin/{level_id}/delete", response_model=Message)
+def delete_level(*, level_id: int, current_user:CurrentUser, session: Session=Depends(get_db)):
+
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Only superusers can delete levels')
+
+    level = session.get(Level, level_id)
+
+    if not level:
+        raise HTTPException(404, "Level not found")
+
+    try:
+        delete_level_content(level, session)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+
+
+    return Message(message="Level deleted successfully")

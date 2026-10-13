@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session
 
 
 from models import User, StudentProfile, TeacherProfile, Level, UserLevelProgress, Theme
+from schemas.user_schemas import AdminUserCreate
 from security import get_password_hash, verify_password
 from schemas import MyUserCreate, UserPublic
 
 
-def create_user(*, user_in: MyUserCreate, session: Session):
+def create_user(*, user_in: MyUserCreate | AdminUserCreate, session: Session):
     user = User(**user_in.model_dump(exclude={'password'}),hashed_password=get_password_hash(user_in.password))
     if user.role == "student":
         user.student = StudentProfile()
