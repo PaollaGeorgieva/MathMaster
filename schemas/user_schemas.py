@@ -1,7 +1,13 @@
 import uuid
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
+
+
+class AdminProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    first_name: str | None = Field(default=None, max_length=30)
+    last_name: str | None = Field(default=None, max_length=30)
 
 from .school_class_schemas import SchoolClassRead
 
@@ -16,8 +22,8 @@ class StudentProfileRead(BaseModel):
 
 
 class StudentProfileUpdate(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str | None = Field(default=None, max_length=30)
+    last_name: str | None = Field(default=None, max_length=30)
 
 
 class TeacherProfileRead(BaseModel):
@@ -29,8 +35,8 @@ class TeacherProfileRead(BaseModel):
 
 
 class TeacherProfileUpdate(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str | None = Field(default=None, max_length=30)
+    last_name: str | None = Field(default=None, max_length=30)
 
 
 class UserRole(str, Enum):
@@ -43,6 +49,14 @@ class MyUserCreate(BaseModel):
     password: str
     role: UserRole = UserRole.student
 
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    role: UserRole
+    is_superuser: bool
+    is_active: bool
+    is_verified: bool
+
 
 class UpdateUserEmail(BaseModel):
     current_password: str
@@ -53,6 +67,7 @@ class UserPublic(BaseModel):
     id: uuid.UUID
     email: EmailStr
     role: UserRole
+    is_superuser: bool
 
     student: StudentProfileRead | None = None
     teacher: TeacherProfileRead | None = None

@@ -23,7 +23,7 @@ def create_example(*, current_user: CurrentUser, data: ExampleProblemCreate, ses
 
     theory = session.get(Theory, data.theory_id)
 
-    if not theory or not theory.is_active or not theory.level.is_active or not theory.level.theme.is_active:
+    if not theory:
         raise HTTPException(404, "Theory not found")
 
     example_obj = ExampleProblem(**data.model_dump())
@@ -105,6 +105,7 @@ def deactivate_example(current_user: CurrentUser ,example_id:int, session: Sessi
 
 
 
+
 @example_router.patch("/{example_id}/activate", response_model=Message)
 def activate_example(current_user: CurrentUser ,example_id:int, session: Session = Depends(get_db) ):
     if not current_user.is_superuser:
@@ -160,7 +161,22 @@ def get_examples_admin(
 
 
 
+@example_router.delete("/{example_id}/delete", response_model=Message)
+def delete_example(current_user: CurrentUser ,example_id:int, session: Session = Depends(get_db) ):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Only superusers can delete examples")
 
+    example = session.get(ExampleProblem, example_id)
+
+    if not example:
+        raise HTTPException(404, "Example not found")
+
+
+    session.delete(example)
+
+    session.commit()
+
+    return  Message(message="Example deleted successfully")
 
 
 

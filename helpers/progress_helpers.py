@@ -1,15 +1,18 @@
 from datetime import datetime
 
+
 from fastapi import HTTPException
+from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
+from helpers.gamification_helpers import award_level_badge
 from models import (
     Level,
     TestAttempt,
     Theme,
     ThemeTest,
     UserLevelProgress,
-    UserProblemAttempt,
+    UserProblemAttempt, Problem, UserProblemProgress, Theory,
 )
 
 
@@ -71,7 +74,13 @@ def get_theme_test_attempt(
 
 
 def get_official_problem_progress_query(*, session: Session, user_id, level: Level):
-    problem_ids = [problem.id for problem in level.problems if problem.is_active and problem.is_official]
+    problem_ids = [row.id for row in session.query(Problem.id).join(Problem.theory).filter(
+        Problem.level_id == level.id,
+        Problem.is_active.is_(True),
+        Problem.is_official.is_(True),
+        Theory.is_active.is_(True),
+    )
+    .all()]
 
     solved_query = session.query(UserProblemAttempt.problem_id).filter(
         UserProblemAttempt.user_id == user_id,
@@ -83,7 +92,20 @@ def get_official_problem_progress_query(*, session: Session, user_id, level: Lev
 
 
 def all_official_problems_solved(*, session: Session, user_id, level: Level) -> bool:
-    problem_ids, solved_query = get_official_problem_progress_query(session=session, user_id=user_id, level=level)
+    problem_ids = [row.id for row in session.query(Problem.id).join(Problem.theory).filter(
+            Problem.level_id == level.id,
+            Problem.is_active.is_(True),
+            Problem.is_official.is_(True),
+            Theory.is_active.is_(True),
+        )
+        .all()]
+
+
+    solved_query = session.query(UserProblemProgress.problem_id).filter(
+        UserProblemProgress.user_id == user_id,
+        UserProblemProgress.problem_id.in_(problem_ids),
+        UserProblemProgress.solved_at.is_not(None),
+    ).distinct()
 
     if not problem_ids:
         return False
@@ -92,6 +114,22 @@ def all_official_problems_solved(*, session: Session, user_id, level: Level) -> 
     return solved_query.count() == len(problem_ids)
 
 
+from datetime import datetime, timezone
+
+
+def recalculate_level_progress(session:Session, level:Level):
+    for progress in level.user_associations:
+        if not progress.is_unlocked or progress.is_completed:
+            continue
+
+        if all_official_problems_solved(session=session, user_id=progress.user_id, level=level):
+            complete_level_and_unlock_next_in_theme(
+                session=session,
+                user_id=progress.user_id,
+                level=level,
+                submitted_at=datetime.now(timezone.utc),
+            )
+            award_level_badge(session=session, user_id=progress.user_id)
 
 def require_all_theme_levels_completed(*, session: Session, user_id, theme: Theme) -> None:
     active_level_ids = [level.id for level in theme.levels if level.is_active]
@@ -109,6 +147,27 @@ def require_all_theme_levels_completed(*, session: Session, user_id, theme: Them
 
     if completed_count != len(active_level_ids):
         raise HTTPException(403, 'Complete all theme levels before taking the test')
+
+
+
+def update_level_progress(
+    *, session: Session, user_id, level: Level
+) -> bool:
+    if not all_official_problems_solved(
+        session=session,
+        user_id=user_id,
+        level=level,
+    ):
+        return False
+
+    newly_completed, _ = complete_level_and_unlock_next_in_theme(
+        session=session,
+        user_id=user_id,
+        level=level,
+        submitted_at=datetime.now(timezone.utc),
+    )
+
+    return newly_completed
 
 def complete_level_and_unlock_next_in_theme(
     *,
@@ -131,23 +190,12 @@ def complete_level_and_unlock_next_in_theme(
     progress.completed_at = submitted_at
     progress.is_completed = True
 
-    active_levels = session.query(Level).filter(
-            Level.theme_id == level.theme_id,
-            Level.is_active.is_(True),
-        ).order_by(
-        Level.order_index.asc(),
-        Level.id.asc()).all()
+    next_level = session.query(Level).filter(
+        Level.theme_id == level.theme_id,
+        Level.is_active.is_(True),
+        tuple_(Level.order_index, Level.id) > (level.order_index, level.id),
+    ).order_by(Level.order_index.asc(), Level.id.asc()).first()
 
-
-    next_level = None
-
-    for index, active_level in enumerate(active_levels):
-        if active_level.id != level.id:
-            continue
-
-        if index + 1 < len(active_levels):
-            next_level = active_levels[index + 1]
-        break
 
     if next_level is not None:
         get_or_create_level_progress(session=session, user_id=user_id, level=next_level, is_unlocked=True)
@@ -155,39 +203,23 @@ def complete_level_and_unlock_next_in_theme(
     return True, next_level
 
 def unlock_next_theme(*, session: Session, user_id, theme: Theme) -> Level | None:
-    active_themes = session.query(Theme).filter(
-        Theme.is_active.is_(True)
+    next_level = session.query(Level).join(Level.theme).filter(
+        Theme.is_active.is_(True),
+        Level.is_active.is_(True),
+        tuple_(Theme.order_index, Theme.id) > (theme.order_index, theme.id),
     ).order_by(
         Theme.order_index.asc(),
         Theme.id.asc(),
-    ).all()
+        Level.order_index.asc(),
+        Level.id.asc(),
+    ).first()
 
-    current_theme_reached = False
+    if next_level is not None:
+        get_or_create_level_progress(
+            session=session,
+            user_id=user_id,
+            level=next_level,
+            is_unlocked=True,
+        )
 
-    for active_theme in active_themes:
-        if active_theme.id == theme.id:
-            current_theme_reached = True
-            continue
-
-        if not current_theme_reached:
-            continue
-
-        next_level = session.query(Level).filter(
-            Level.theme_id == active_theme.id,
-            Level.is_active.is_(True),
-        ).order_by(
-            Level.order_index.asc(),
-            Level.id.asc(),
-        ).first()
-
-        if next_level is not None:
-            get_or_create_level_progress(
-                session=session,
-                user_id=user_id,
-                level=next_level,
-                is_unlocked=True,
-            )
-
-            return next_level
-
-    return None
+    return next_level

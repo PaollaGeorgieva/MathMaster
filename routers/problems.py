@@ -7,15 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from helpers.delete_helpers import delete_problem_content
 from helpers.level_helpers import require_level_unlocked, require_problem_access
 from helpers.gamification_helpers import award_level_badge,get_or_create_problem_progress,record_hint_use
 from helpers.problem_helpers import get_problem_or_404, check_already_solved, check_attempts_left, create_attempt, \
     handle_correct_answer, build_result, require_problem_owner_or_superuser, require_problem_assignment_permission
 
-from helpers.progress_helpers import all_official_problems_solved,complete_level_and_unlock_next_in_theme
+from helpers.progress_helpers import all_official_problems_solved, complete_level_and_unlock_next_in_theme, \
+    recalculate_level_progress, update_level_progress
 
-from models import User, Problem, UserProblemAttempt, Level,SchoolClass, ClassProblemAssignment, \
-    UserProblemProgress
+from models import User, Problem, UserProblemAttempt, Level, Theme, SchoolClass, ClassProblemAssignment, \
+    UserProblemProgress, Theory, StudentProfile
+from routers.classes import student_progress
+from routers.theories import get_active_theory
+from datetime import  datetime, timezone
 
 from schemas import SubmitAnswer, AttemptResult, ProblemReadStudent, ProblemReadAdmin, ProblemCreate, ProblemHint, \
     ProblemUpdate, Message, ReadUserProblemAttempt, ProblemHistoryRead, ClassProblemAssignmentCreate, ProblemResultRead
@@ -26,25 +31,29 @@ problems_router = APIRouter(prefix="/problems", tags=["problems"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @problems_router.post("/", response_model=ProblemReadAdmin)
-def create_problem(*, current_user: CurrentUser, data: ProblemCreate,session: Session = Depends(get_db)):
+def create_problem(*, current_user: CurrentUser, data: ProblemCreate, session: Session = Depends(get_db)):
     if current_user.role != "teacher" and not current_user.is_superuser:
-        raise HTTPException(403,"Only teachers and superusers can add problems")
+        raise HTTPException(403, "Only teachers and superusers can add problems")
 
-    level = session.get(Level, data.level_id)
+    if current_user.is_superuser:
+        theory = session.get(Theory, data.theory_id)
+        if theory is None:
+            raise HTTPException(404, "Theory not found")
+    else:
+        theory = get_active_theory(session, data.theory_id)
 
-    if not level or not level.is_active:
-        raise HTTPException(404, "Level not found")
+    if theory.level_id != data.level_id:
+        raise HTTPException(400, "Theory does not belong to the selected level")
 
     class_ids = set(data.class_ids)
 
     if current_user.is_superuser:
         if class_ids:
-            raise HTTPException(400,"Official problems cannot be assigned to classes")
-
+            raise HTTPException(400, "Official problems cannot be assigned to classes")
         assigned_classes = []
     else:
         if not class_ids:
-            raise HTTPException(400,"Select at least one class")
+            raise HTTPException(400, "Select at least one class")
 
         assigned_classes = session.query(SchoolClass).filter(
             SchoolClass.id.in_(class_ids),
@@ -54,22 +63,21 @@ def create_problem(*, current_user: CurrentUser, data: ProblemCreate,session: Se
         if len(assigned_classes) != len(class_ids):
             raise HTTPException(403, "Invalid class or class does not belong to you")
 
-    problem_obj = Problem(
+    problem = Problem(
         **data.model_dump(exclude={"class_ids"}),
         created_by_id=current_user.id,
         is_official=current_user.is_superuser,
     )
 
-    problem_obj.class_assignments = [
+    problem.class_assignments = [
         ClassProblemAssignment(school_class=school_class) for school_class in assigned_classes
     ]
 
-    session.add(problem_obj)
+    session.add(problem)
     session.commit()
-    session.refresh(problem_obj)
+    session.refresh(problem)
 
-    return problem_obj
-
+    return problem
 
 @problems_router.get( "/admin/all", response_model=list[ProblemReadAdmin])
 def get_problems_admin(current_user: CurrentUser,level_id: int | None = None,session: Session = Depends(get_db)):
@@ -89,6 +97,17 @@ def get_problems_admin(current_user: CurrentUser,level_id: int | None = None,ses
 
 
     return problems
+
+
+@problems_router.get("/catalog", response_model=list[ProblemReadAdmin])
+def get_teacher_catalog(current_user: CurrentUser, session: Session = Depends(get_db)):
+    if current_user.role != "teacher" and not current_user.is_superuser:
+        raise HTTPException(403, "Teacher access required")
+    return session.query(Problem).join(Problem.theory).join(Problem.level).join(Level.theme).filter(
+        Problem.is_active.is_(True), Theory.is_active.is_(True),
+        Level.is_active.is_(True), Theme.is_active.is_(True),
+        (Problem.is_official.is_(True)) | (Problem.created_by_id == current_user.id),
+    ).order_by(Problem.level_id, Theory.order_index, Problem.order_index, Problem.id).all()
 
 
 @problems_router.get("/mine",response_model=list[ProblemReadAdmin])
@@ -145,37 +164,31 @@ def submit_answer(current_user: CurrentUser,problem_id: int, data: SubmitAnswer,
             used_hint=problem_progress.hint_used,
         )
 
-        if attempt.is_correct:
-            reward = handle_correct_answer(
-                session=session,
-                current_user=current_user,
-                problem=problem,
-                attempt=attempt,
-                problem_progress=problem_progress,
-            )
-
-            are_all_official_problems_solved = all_official_problems_solved(
+        if attempt.is_correct or attempt.attempt_number >= problem.max_attempts:
+            problem_progress.solved_at = datetime.now(timezone.utc)
+            if attempt.is_correct:
+                reward = handle_correct_answer(
                     session=session,
-                    user_id=current_user.id,
-                    level=problem.level,
+                    current_user=current_user,
+                    problem=problem,
+                    attempt=attempt,
+                    problem_progress=problem_progress,
                 )
 
-            if problem.is_official and are_all_official_problems_solved:
-                newly_level_completed, _next_level = complete_level_and_unlock_next_in_theme(
+        if problem.is_official:
+            newly_completed = update_level_progress(
+                session=session,
+                user_id=current_user.id,
+                level=problem.level,
+            )
+
+            if newly_completed:
+                reward["new_badges"].extend(
+                    award_level_badge(
                         session=session,
                         user_id=current_user.id,
-                        level=problem.level,
-                        submitted_at=problem_progress.solved_at,
                     )
-
-
-                if newly_level_completed:
-                    reward["new_badges"].extend(
-                        award_level_badge(
-                            session=session,
-                            user_id=current_user.id,
-                        )
-                    )
+                )
 
         session.commit()
     except IntegrityError:
@@ -322,9 +335,20 @@ def deactivate_problem(current_user: CurrentUser,problem_id: int,session: Sessio
     require_problem_owner_or_superuser(current_user=current_user,problem=problem)
 
     problem.is_active = False
+
+    level = problem.level
+
+    if problem.is_official and level.is_active and level.theme.is_active:
+       recalculate_level_progress(session, level)
+
+
     session.commit()
 
     return Message(message="Problem deactivated successfully")
+
+
+
+
 
 
 @problems_router.patch("/{problem_id}/activate",response_model=Message)
@@ -493,3 +517,20 @@ def delete_problem_assignment(current_user: CurrentUser, problem_id: int, class_
     session.commit()
 
     return Message(message="Problem assignment removed successfully")
+
+
+@problems_router.delete("/admin/{problem_id}/delete",response_model=Message)
+def delete_problem(current_user: CurrentUser,problem_id: int,session: Session = Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, 'Only superusers can delete problems')
+    problem = session.get(Problem, problem_id)
+
+    if not problem:
+        raise HTTPException(404, "Problem not found")
+
+
+    delete_problem_content(problem, session)
+    session.commit()
+
+
+    return Message(message="Problem deleted successfully")

@@ -1,9 +1,3 @@
-"""
- --- > Used SQLAlchemyBaseUserTableUUID class from fastapi_user.db
- --- > Add Profile Model with first_name, last_name, profile_picture
-
-
-"""
 from __future__ import annotations
 import datetime
 import uuid

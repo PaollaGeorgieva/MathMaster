@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from .school_class_schemas import ClassProblemAssignmentRead
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ThemeCreate(BaseModel):
     title: str
@@ -57,6 +57,7 @@ class LevelCreate(BaseModel):
 class LevelUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
+    order_index: int | None = None
 
 
 class ExampleProblemRead(BaseModel):
@@ -111,6 +112,7 @@ class TheoryRead(BaseModel):
     order_index: int
     level_id: int
     example_problems: list[ExampleProblemRead] = Field(default_factory=list)
+    problems: list["ProblemReadStudent"] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -123,6 +125,7 @@ class TheoryReadAdmin(BaseModel):
     level_id: int
     is_active: bool
     example_problems: list[ExampleProblemReadAdmin] = Field(default_factory=list)
+    problems: list["ProblemReadAdmin"] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -135,7 +138,8 @@ class ProblemCreate(BaseModel):
     explanation: str
     order_index: int
     level_id: int
-    max_attempts: int
+    theory_id: int = Field(gt=0)
+    max_attempts: int = Field(gt=0)
     hint: str | None = None
     class_ids: list[int] = Field(default_factory=list)
 
@@ -145,8 +149,15 @@ class ProblemUpdate(BaseModel):
     correct_answer: str | None = None
     explanation: str | None = None
     order_index: int | None = None
-    max_attempts: int | None = None
+    max_attempts: int | None = Field(default=None, gt=0)
     hint: str | None = None
+
+    @field_validator("max_attempts")
+    @classmethod
+    def validate_max_attempts(cls, value):
+        if value is None:
+            raise ValueError("max_attempts cannot be null")
+        return value
 
 
 class ProblemReadStudent(BaseModel):
@@ -154,6 +165,7 @@ class ProblemReadStudent(BaseModel):
     question: str
     order_index: int
     max_attempts: int
+    theory_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -167,6 +179,7 @@ class ProblemReadAdmin(BaseModel):
     max_attempts: int
     hint: str | None = None
     level_id: int
+    theory_id: int
     is_active: bool
     created_by_id: uuid.UUID | None = None
     is_official: bool
