@@ -31,29 +31,27 @@ problems_router = APIRouter(prefix="/problems", tags=["problems"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @problems_router.post("/", response_model=ProblemReadAdmin)
-def create_problem(*, current_user: CurrentUser, data: ProblemCreate, session: Session = Depends(get_db)):
+def create_problem(*,current_user: CurrentUser,data: ProblemCreate,session: Session = Depends(get_db)):
     if current_user.role != "teacher" and not current_user.is_superuser:
         raise HTTPException(403, "Only teachers and superusers can add problems")
 
-    if current_user.is_superuser:
+    class_ids = set(data.class_ids)
+    is_official = current_user.is_superuser and not class_ids
+
+    if is_official:
         theory = session.get(Theory, data.theory_id)
         if theory is None:
             raise HTTPException(404, "Theory not found")
-    else:
-        theory = get_active_theory(session, data.theory_id)
 
-    if theory.level_id != data.level_id:
-        raise HTTPException(400, "Theory does not belong to the selected level")
-
-    class_ids = set(data.class_ids)
-
-    if current_user.is_superuser:
-        if class_ids:
-            raise HTTPException(400, "Official problems cannot be assigned to classes")
         assigned_classes = []
     else:
+        if current_user.role != "teacher" or current_user.teacher is None:
+            raise HTTPException(403, "Only teachers can assign problems to classes")
+
         if not class_ids:
             raise HTTPException(400, "Select at least one class")
+
+        theory = get_active_theory(session, data.theory_id)
 
         assigned_classes = session.query(SchoolClass).filter(
             SchoolClass.id.in_(class_ids),
@@ -63,14 +61,18 @@ def create_problem(*, current_user: CurrentUser, data: ProblemCreate, session: S
         if len(assigned_classes) != len(class_ids):
             raise HTTPException(403, "Invalid class or class does not belong to you")
 
+    if theory.level_id != data.level_id:
+        raise HTTPException(400, "Theory does not belong to the selected level")
+
     problem = Problem(
         **data.model_dump(exclude={"class_ids"}),
         created_by_id=current_user.id,
-        is_official=current_user.is_superuser,
+        is_official=is_official,
     )
 
     problem.class_assignments = [
-        ClassProblemAssignment(school_class=school_class) for school_class in assigned_classes
+        ClassProblemAssignment(school_class=school_class)
+        for school_class in assigned_classes
     ]
 
     session.add(problem)
@@ -78,7 +80,6 @@ def create_problem(*, current_user: CurrentUser, data: ProblemCreate, session: S
     session.refresh(problem)
 
     return problem
-
 @problems_router.get( "/admin/all", response_model=list[ProblemReadAdmin])
 def get_problems_admin(current_user: CurrentUser,level_id: int | None = None,session: Session = Depends(get_db)):
     if not current_user.is_superuser:
