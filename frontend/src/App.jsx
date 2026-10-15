@@ -19,6 +19,7 @@ import HistoryPage from './pages/HistoryPage'
 import ProfilePage from './pages/ProfilePage'
 import StudentProgressPage from './pages/StudentProgressPage'
 import TeacherProblemsPage from './pages/TeacherProblemsPage'
+import EditProblemPage from './pages/EditProblemPage'
 import CreateProblemPage from './pages/CreateProblemPage'
 import TestLibraryPage from './pages/TestLibraryPage'
 import ProblemLibraryPage from './pages/ProblemLibraryPage'
@@ -74,6 +75,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/students/:studentId/progress" element={<StudentProgressPage />} />
           <Route path="/teacher/problems" element={<TeacherProblemsPage />} />
+          <Route path="/teacher/problems/:problemId/edit" element={<EditProblemPage />} />
           <Route path="/teacher/problems/new" element={<CreateProblemPage />} />
           <Route path="/library/tests" element={<TestLibraryPage />} />
           <Route path="/teacher/library" element={<ProblemLibraryPage />} />
