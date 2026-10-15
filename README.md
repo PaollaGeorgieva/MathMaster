@@ -5,14 +5,17 @@
 It includes a FastAPI backend, a React application for students and teachers, and a separate administration panel.
 
 🌐 **[Live Demo](https://mathmaster-app.onrender.com)**  
-📖 **[API Documentation](https://mathmaster-m7l6.onrender.com/docs)**
 
 > The free hosting service may take about a minute to wake up after inactivity. Create a student or teacher account to explore the application.
 
 ## Features
+## Administration Panel
+
+Administrators can manage learning content, tests and users through a dedicated React Admin interface. Access is restricted to administrator accounts.
+<img width="1902" height="853" alt="Екранна снимка 2026-10-15 184150" src="https://github.com/user-attachments/assets/d7be189b-8078-44d1-a7fa-c27e85bf0c33" />
+
 
 ### Learning and Practice
-
 - Mathematical themes with progressively unlocked levels
 - Theory, worked examples and practice problems
 - Mathematical input with a virtual keyboard
