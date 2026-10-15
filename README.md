@@ -6,7 +6,6 @@ It includes a FastAPI backend, a React application for students and teachers, an
 
 🌐 **[Live Demo](https://mathmaster-app.onrender.com)**  
 
-> The free hosting service may take about a minute to wake up after inactivity. Create a student or teacher account to explore the application.
 
 ## Features
 ## Administration Panel
