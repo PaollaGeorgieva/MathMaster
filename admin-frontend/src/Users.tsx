@@ -158,6 +158,9 @@ function ProfileInputs() {
     const profile = record?.role === "student" ? "student" : "teacher";
     return <>
         <TextField source="email" />
+        <BooleanInput source="is_active" label="Active" />
+        <BooleanInput source="is_verified" label="Verified" />
+        <BooleanInput source="is_superuser" label="Administrator" />
         <TextInput source={`${profile}.first_name`} label="Име" fullWidth />
         <TextInput source={`${profile}.last_name`} label="Фамилия" fullWidth />
     </>;

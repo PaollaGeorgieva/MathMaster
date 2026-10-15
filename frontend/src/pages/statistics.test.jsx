@@ -11,7 +11,7 @@ afterEach(() => { cleanup(); vi.resetAllMocks() })
 const themes = [{ id:1, title:'Цели изрази', completed_levels:1, total_levels:3, progress_percentage:25, levels:[{id:2,title:'Едночлени',theories:[{id:3,title:'Нормален вид'}]}] }]
 
 test('dashboard separates completed lesson percentage from points towards the next level', async () => {
-  request.mockResolvedValue({ points:145, solved_problems:10, tests_completed:0, level:2, level_progress_percentage:45, points_for_next_level:55, badges:[] })
+  request.mockImplementation(async (_, path) => path === '/problems/history/me' ? [] : { points:145, solved_problems:10, tests_completed:0, level:2, level_progress_percentage:45, points_for_next_level:55, badges:[] })
   render(<MemoryRouter><StudyDashboard user={{student:{}}} themes={[{...themes[0], completed_levels:0, total_levels:4}]} token="test" /></MemoryRouter>)
   const points = await screen.findByRole('progressbar', { name:'Точки до следващото ниво' })
   expect(points.value).toBe(45)

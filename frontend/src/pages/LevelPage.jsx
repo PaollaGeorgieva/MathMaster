@@ -68,7 +68,7 @@ function LessonContent({ token, user, refresh, level, initial = { stage: 0, inde
     {level && (!level.is_unlocked ? <p className="feedback">Това ниво е заключено.</p> : <section className="lesson-game">
       <p className="adventure-eyebrow">МАЛКА СТЪПКА, ГОЛЯМО ОТКРИТИЕ</p><h1>{level.title}</h1>
       {user.role === 'teacher' && <Link className="adventure-primary page-action" to={`/teacher/library?level=${level.id}`}>Разгледай задачите →</Link>}
-      {user.role === 'student' && <button className="quiet-button" onClick={() => { setTheoryIndex(0); move(0) }}>Преглед от началото</button>}
+      {user.role === 'student' && (theoryIndex > 0 || stage > 0) && <button className="quiet-button" onClick={() => { setTheoryIndex(0); move(0) }}>Преглед от началото</button>}
       {theory && <p className="lesson-block-title">Част {theoryIndex + 1} от {theories.length}: {theory.title}</p>}
       <ol className="lesson-stages">{labels.map((label, i) => <li key={label} aria-current={stage === i ? 'step' : undefined} className={stage >= i ? 'reached' : ''}><span>{stage > i ? '✓' : i + 1}</span>{label}</li>)}</ol>
       <div className="lesson-stage-card" key={`${theoryIndex}-${stage}-${index}`}>

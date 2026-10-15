@@ -33,3 +33,12 @@ progress { appearance:none; border:none; border-radius:20px; overflow:hidden; he
 .next-level-note progress { display:block; width:100%; margin:12px 0; }
 .next-level-note progress::-webkit-progress-value { background:#ffc967; }
 .next-level-note progress::-moz-progress-bar { background:#ffc967; }
+
+.test-library-questions { display: grid; gap: 18px; margin-top: 20px; }
+.test-library-question { background: #fff; border: 1px solid #e5e0f5; border-radius: 18px; padding: 20px; }
+.test-library-question h3 { line-height: 1.6; overflow-wrap: anywhere; }
+.test-library-answers { list-style: none; padding: 0; display: grid; gap: 10px; }
+.test-library-answers li { padding: 12px 16px; border-radius: 12px; background: #f5f3fc; overflow-wrap: anywhere; }
+.test-library-answers li.correct { background: #e1f6ee; color: #18664d; }
+.test-library-answers small { display: block; margin-top: 6px; font-weight: 700; }
+.library-page details > summary { cursor: pointer; color: #6945bb; font-weight: 700; padding: 12px 0; }

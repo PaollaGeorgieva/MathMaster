@@ -6,6 +6,7 @@ import {
 } from "react-admin";
 import type { RaRecord } from "react-admin";
 import { dataProvider } from "./dataProvider";
+import { ContentDeleteButton } from "./ContentDeleteButton";
 import { StatusButton } from "./StatusButton";
 import { MathTextInput, MathTextField } from "./MathTextInput";
 import { ContentScopeInputs, ContentFilters, ContentListActions } from "./ContentScopeInputs";
@@ -20,6 +21,7 @@ const ProblemToolbar = () => (
     <Toolbar sx={{ gap: 2 }}>
         <SaveButton />
         <StatusButton />
+            <ContentDeleteButton />
     </Toolbar>
 );
 
@@ -87,6 +89,7 @@ export const ProblemList = () => (
             <BooleanField source="is_active" label="Active" />
             <EditButton />
             <StatusButton />
+            <ContentDeleteButton />
         </Datagrid>
     </List>
 );

@@ -4,6 +4,7 @@ import {
     SaveButton, SelectInput, SimpleForm, TextField, TextInput,
     Toolbar, minValue, required,
 } from "react-admin";
+import { ContentDeleteButton } from "./ContentDeleteButton";
 import { StatusButton } from "./StatusButton";
 import { MathTextInput } from "./MathTextInput";
 
@@ -22,6 +23,7 @@ const TheoryEditToolbar = () => (
     <Toolbar sx={{ gap: 2 }}>
         <SaveButton />
         <StatusButton />
+            <ContentDeleteButton />
     </Toolbar>
 );
 
@@ -61,6 +63,7 @@ export const TheoryList = () => (
             <BooleanField source="is_active" label="Active" />
             <EditButton />
             <StatusButton />
+            <ContentDeleteButton />
         </Datagrid>
     </List>
 );

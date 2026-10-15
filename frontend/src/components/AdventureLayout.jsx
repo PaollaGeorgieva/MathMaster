@@ -44,7 +44,7 @@ export default function AdventureLayout({ token, onLogout }) {
   }
   const teacher = user?.role === 'teacher'
   const name = user?.student?.first_name || user?.teacher?.first_name || (teacher ? 'Учител' : 'Изследовател')
-  const links = [['/', '⌂', 'Начало'], ['/topics', '▦', 'Учебни теми'], ...(teacher ? [['/teacher/library','▤','Библиотека'], ['/teacher/problems','✎','Моите задачи']] : [['/progress','◔','Моят прогрес'], ['/history','◷','История']]), ['/class','♧',teacher ? 'Моите класове' : 'Моят клас'], ['/profile','⚙','Моят профил']]
+  const links = [['/', '⌂', 'Начало'], ['/topics', '▦', 'Учебни теми'], ...(teacher ? [['/teacher/library','▤','Библиотека'], ['/teacher/problems','✎','Моите задачи']] : [['/library/tests','▤','Тестове'], ['/progress','◔','Моят прогрес'], ['/history','◷','История']]), ['/class','♧',teacher ? 'Моите класове' : 'Моят клас'], ['/profile','⚙','Моят профил']]
   return <div className="app-frame">
     <aside className={'app-sidebar ' + (menuOpen ? 'open' : '')}>
       <Link className="app-brand" to="/"><span>m<span>✦</span></span><strong>MathMaster<small>МАЛКИ СТЪПКИ. ГОЛЕМИ ИДЕИ.</small></strong></Link>

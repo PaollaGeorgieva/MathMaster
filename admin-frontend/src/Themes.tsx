@@ -17,6 +17,7 @@ import {
     minValue,
     required,
 } from "react-admin";
+import { ContentDeleteButton } from "./ContentDeleteButton";
 import { StatusButton } from "./StatusButton";
 
 const titleValidation = [required(), maxLength(30)];
@@ -31,6 +32,7 @@ const ThemeEditToolbar = () => (
     <Toolbar sx={{ gap: 2 }}>
         <SaveButton />
         <StatusButton />
+            <ContentDeleteButton />
     </Toolbar>
 );
 
@@ -48,6 +50,7 @@ export const ThemeList = () => (
             <BooleanField source="is_active" label="Active" />
             <EditButton />
             <StatusButton />
+            <ContentDeleteButton />
         </Datagrid>
     </List>
 );
