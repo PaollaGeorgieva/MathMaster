@@ -17,6 +17,7 @@ app = FastAPI(title="MathMaster API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://mathmaster-app.onrender.com",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
