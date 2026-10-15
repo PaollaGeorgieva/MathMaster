@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage'
 import StudentProgressPage from './pages/StudentProgressPage'
 import TeacherProblemsPage from './pages/TeacherProblemsPage'
 import CreateProblemPage from './pages/CreateProblemPage'
+import TestLibraryPage from './pages/TestLibraryPage'
 import ProblemLibraryPage from './pages/ProblemLibraryPage'
 import { readSession, saveSession, clearSession } from './services/session'
 
@@ -74,6 +75,7 @@ function App() {
           <Route path="/students/:studentId/progress" element={<StudentProgressPage />} />
           <Route path="/teacher/problems" element={<TeacherProblemsPage />} />
           <Route path="/teacher/problems/new" element={<CreateProblemPage />} />
+          <Route path="/library/tests" element={<TestLibraryPage />} />
           <Route path="/teacher/library" element={<ProblemLibraryPage />} />
           <Route path="/themes/:themeId" element={<ThemePage />} />
           <Route path="/levels/:levelId" element={<LevelPage />} />

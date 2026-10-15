@@ -49,6 +49,16 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+test('restart is hidden on first theory and shown on first example', async () => {
+  mountLesson()
+  await screen.findByText('First explanation')
+  expect(screen.queryByText('Преглед от началото')).toBeNull()
+  fireEvent.click(screen.getByText('Разбрах, покажи ми пример →'))
+  expect(screen.getByText('Преглед от началото')).toBeTruthy()
+  fireEvent.click(screen.getByText('Преглед от началото'))
+  expect(screen.queryByText('Преглед от началото')).toBeNull()
+})
+
 function withHistory(history, content = level) {
   const original = request.getMockImplementation()
   request.mockImplementation((token, path, options) => {

@@ -9,6 +9,12 @@ class AdminProfileUpdate(BaseModel):
     first_name: str | None = Field(default=None, max_length=30)
     last_name: str | None = Field(default=None, max_length=30)
 
+class AdminUserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    is_superuser: bool = False
+    is_active: bool = True
+    is_verified: bool = False
+
 from .school_class_schemas import SchoolClassRead
 
 class StudentProfileRead(BaseModel):

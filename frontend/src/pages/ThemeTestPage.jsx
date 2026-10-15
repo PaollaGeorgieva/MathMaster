@@ -9,7 +9,7 @@ import ResourceState from '../components/ResourceState'
 export default function ThemeTestPage() {
   const context = useOutletContext()
   const { themeId } = useParams()
-  if (context.user.role !== 'student') return <><Link to={`/themes/${themeId}`} className="page-back">← Към картата</Link><h1>Тест на темата</h1><p>Тестовете се решават от учениците. Резултатите им са в „Моите класове“.</p></>
+  if (context.user.role !== 'student') return <><Link to={`/themes/${themeId}`} className="page-back">← Към картата</Link><h1>Тест на темата</h1><p>Тестовете се решават от учениците. Резултатите им са в „Моите класове“.</p><Link className="adventure-primary page-action" to={`/library/tests?theme=${themeId}`}>Разгледай тестовете →</Link></>
   return <Test key={themeId} themeId={themeId} {...context} />
 }
 function Test({ themeId, token, refresh }) {

@@ -16,9 +16,7 @@ from schemas import UserPublic, Message, UpdateUserEmail, UpdatePassword, Studen
     StudentProfileUpdate, TeacherProfileUpdate, StudentProgress, AdminUserRead, UserRole, AdminUserDetailRead, BadgeRead
 from security import get_current_user, verify_password, get_password_hash
 from crud import get_user_by_email
-from schemas.user_schemas import AdminProfileUpdate
-
-
+from schemas.user_schemas import AdminProfileUpdate, AdminUserUpdate
 
 users_router = APIRouter(prefix="/users", tags=["users"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -187,6 +185,28 @@ def get_user_details_admin(user_id: uuid.UUID,current_user: CurrentUser,session:
         raise HTTPException(status_code=404,detail="User not found")
 
     return user
+@users_router.patch("/admin/{user_id}/details", response_model=Message)
+def update_user_admin(user_id: uuid.UUID, data: AdminUserUpdate,
+                         current_user: CurrentUser, session: Session = Depends(get_db)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Admin access required")
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    changes = data.model_dump(exclude_unset=True)
+
+    if user.id == current_user.id:
+        if changes.get("is_superuser") is False:
+            raise HTTPException(400, "You cannot remove your own admin access")
+        if changes.get("is_active") is False:
+            raise HTTPException(400, "You cannot deactivate your own account")
+
+    for field, value in changes.items():
+        setattr(user, field, value)
+
+    session.commit()
+
+    return Message(message="User updated successfully")
 
 
 @users_router.patch("/admin/{user_id}/profile", response_model=AdminUserDetailRead)

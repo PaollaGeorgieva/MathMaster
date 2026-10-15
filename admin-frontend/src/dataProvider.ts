@@ -399,12 +399,14 @@ export const dataProvider: DataProvider = {
     async delete(resource, params) {
         getConfig(resource);
 
-        if (resource !== "test_questions") {
-            fail("Deletion is not supported. Deactivate the record instead.", 405);
-        }
-
+        const deletePaths: Record<string, string> = {
+            themes: "/themes", levels: "/levels/admin", theories: "/theories",
+            example_problems: "/example_problems", problems: "/problems/admin",
+            tests: "/tests/admin", test_questions: "/tests/admin/questions",
+        };
         const record = await loadOne(resource, params.id);
-        await request(`/tests/admin/questions/${encodeId(params.id)}`, "DELETE");
+        const suffix = resource === "test_questions" ? "" : "/delete";
+        await request(`${deletePaths[resource]}/${encodeId(params.id)}${suffix}`, "DELETE");
 
         return { data: record };
     },

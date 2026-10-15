@@ -7,6 +7,7 @@ import {
     required, useRecordContext,
 } from "react-admin";
 import type { RaRecord } from "react-admin";
+import { ContentDeleteButton } from "./ContentDeleteButton";
 import { StatusButton } from "./StatusButton";
 
 const integer = (value: number | null | undefined) =>
@@ -26,6 +27,7 @@ const TestToolbar = () => {
         <Toolbar sx={{ gap: 2 }}>
             <SaveButton disabled={record?.is_active === true} />
             <StatusButton />
+            <ContentDeleteButton />
         </Toolbar>
     );
 };
@@ -63,6 +65,7 @@ export const TestList = () => (
             <BooleanField source="is_active" label="Active" />
             <EditButton />
             <StatusButton />
+            <ContentDeleteButton />
         </Datagrid>
     </List>
 );

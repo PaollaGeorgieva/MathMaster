@@ -119,10 +119,36 @@ export const adminDataProvider: DataProvider = {
 
     async update(resource, params) {
         if (resource === "users") {
-            const profile = params.data.student ?? params.data.teacher ?? {};
-            return { data: await request(`${userUrl(params.id)}/profile`, "PATCH", {
-                first_name: profile.first_name ?? null, last_name: profile.last_name ?? null,
-            }) };
+            const changes: Record<string, unknown> = {};
+            for (const field of ["is_active", "is_verified", "is_superuser"]) {
+                if (params.data[field] !== params.previousData?.[field]) {
+                    changes[field] = params.data[field];
+                }
+            }
+            const profileKey = params.data.role === "student" ? "student" : "teacher";
+            const profile = params.data[profileKey];
+            const previous = params.previousData?.[profileKey];
+            const profileChanges: Record<string, unknown> = {};
+            for (const field of ["first_name", "last_name"]) {
+                if (profile && profile[field] !== previous?.[field]) {
+                    profileChanges[field] = profile[field] ?? null;
+                }
+            }
+            if (Object.keys(changes).length) {
+                await request(`${userUrl(params.id)}/details`, "PATCH", changes);
+            }
+            if (Object.keys(profileChanges).length) {
+                try {
+                    await request(`${userUrl(params.id)}/profile`, "PATCH", profileChanges);
+                } catch (error) {
+                    if (Object.keys(changes).length) {
+                        throw new Error("Account settings were saved, but the profile was not: " +
+                            (error instanceof Error ? error.message : "Please retry."));
+                    }
+                    throw error;
+                }
+            }
+            return { data: await request(userUrl(params.id)) };
         }
         return contentProvider.update(resource, params);
     },

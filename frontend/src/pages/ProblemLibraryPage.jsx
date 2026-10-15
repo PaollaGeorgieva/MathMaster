@@ -33,7 +33,7 @@ function Library({ token, themes }) {
     (!theoryId || String(p.theory_id) === theoryId) && p.question.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
   return <section className="library-page">
     <div className="task-page-heading"><div><p className="adventure-eyebrow">ВСИЧКО ЗА ТВОЯ УРОК</p><h1>Библиотека със задачи</h1><p>Избери теория и разгледай задачите с техните решения.</p></div><Link className="adventure-primary page-action" to="/teacher/problems/new">＋ Нова задача</Link></div>
-    <nav className="progress-tabs"><Link to="/teacher/problems">Моите задачи</Link><span className="active">Библиотека</span></nav>
+    <nav className="progress-tabs"><Link to="/teacher/problems">Моите задачи</Link><span className="active">Задачи</span><Link to="/library/tests">Тестове</Link></nav>
     <div className="library-filters">
       <label>Ниво<select value={levelId} onChange={e => setParams(e.target.value ? { level: e.target.value } : {})}><option value="">Всички нива</option>{levels.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}</select></label>
       <label>Теория<select value={theoryId} onChange={e => setParams({ ...(levelId ? { level: levelId } : {}), ...(e.target.value ? { theory: e.target.value } : {}) })}><option value="">Всички теории</option>{theories.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>

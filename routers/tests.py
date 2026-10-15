@@ -25,8 +25,8 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @tests_router.get('/admin', response_model=list[ThemeTestAdminRead])
 def get_tests(current_user:CurrentUser, theme_id: int | None = None, session: Session = Depends(get_db)):
-    if not current_user.is_superuser:
-        raise HTTPException(403, 'Admin access required')
+    if not current_user.is_superuser and current_user.role != 'teacher':
+        raise HTTPException(403, 'Only teachers and admins can view tests')
 
     query = session.query(ThemeTest)
 
@@ -44,8 +44,8 @@ def get_tests(current_user:CurrentUser, theme_id: int | None = None, session: Se
 
 @tests_router.get('/admin/{test_id}', response_model=ThemeTestAdminRead)
 def get_test_admin(test_id:int,  current_user:CurrentUser, session:Session=Depends(get_db)):
-    if not current_user.is_superuser:
-        raise HTTPException(403, 'Admin access required')
+    if not current_user.is_superuser and current_user.role != 'teacher':
+        raise HTTPException(403, 'Only teachers and admins can view tests')
 
     test = session.get(ThemeTest, test_id)
 
